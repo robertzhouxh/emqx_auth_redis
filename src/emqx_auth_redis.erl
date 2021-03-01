@@ -44,7 +44,7 @@ check(ClientInfo = #{password := Token, clientid := <<$^, _/binary>>, username :
 check(ClientInfo = #{password := Password, clientid := ClientId, username := DevPrdTs}, AuthResult, #{timeout := Timeout, type := Type, pool := Pool} = State) ->
     case binary:split(DevPrdTs,<<$&>>,[global]) of
 	[DevId,PrdId,_Ts] ->
-	    AuthCmd = [<<"HMGET">>, <<"SHARE##device_service#MQTT_DEVICE:", DevId/binary>>, <<"device_token">>, <<"model_id">>],
+	    AuthCmd = [<<"HMGET">>, <<"device:m_did:", DevId/binary>>, <<"device_token">>, <<"model_id">>],
 	    CheckPass = 
 		case emqx_auth_redis_cli:q(Pool, Type, AuthCmd, Timeout) of
 		    {ok, [undefined|_]} -> {error, not_found};
