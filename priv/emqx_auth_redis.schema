@@ -188,10 +188,10 @@ end}.
 
 {translation, "emqx_web_hook.headers", fun(Conf) ->
   Headers = cuttlefish_variable:filter_by_prefix("web.hook.headers", Conf),
-  Trans = fun ("authorization") -> "Authorization";
-              (K)  -> K
+  Trans = fun ("authorization", V) -> {<<"Authorization">>, list_to_binary(string:trim(V))};
+              (K, V)  -> {list_to_binary(string:trim(K)), list_to_binary(string:trim(V))}
           end,
-  [{Trans(K), V} || {[_, _, _, K], V} <- Headers]
+  [{Trans(K, V)} || {[_, _, _, K], V} <- Headers]
 end}.
 
 %% end web-hook
