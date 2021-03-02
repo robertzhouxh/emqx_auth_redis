@@ -130,6 +130,16 @@ end}.
 
 %% for web-hook -----------------------------------------
 
+{mapping, "web.hook.api.super_account", "emqx_web_hook.super_account", [
+  {datatype, string},
+  {default, ""}
+]}.
+
+{mapping, "web.hook.api.super_password", "emqx_web_hook.super_password", [
+  {datatype, string},
+  {default, ""}
+]}.
+
 {mapping, "web.hook.api.url", "emqx_web_hook.url", [
   {datatype, string}
 ]}.
@@ -178,7 +188,10 @@ end}.
 
 {translation, "emqx_web_hook.headers", fun(Conf) ->
   Headers = cuttlefish_variable:filter_by_prefix("web.hook.headers", Conf),
-  [{K, V} || {[_, _, _, K], V} <- Headers]
+  Trans = fun ("authorization") -> "Authorization";
+              (K)  -> K
+          end,
+  [{Trans(K), V} || {[_, _, _, K], V} <- Headers]
 end}.
 
 %% end web-hook
