@@ -27,24 +27,30 @@ check_acl(ClientInfo, PubSub, Topic, AclResult, Config) ->
         {stop, deny} -> emqx_metrics:inc(?ACL_METRICS(deny)), {stop, deny}
     end.
 
-%% TODO: ACL { device | user: can get device list | app: only publish permitted }
 %% Binary bits match: default type is integer, default size is 8, default unit is 1
 do_check_acl(#{username := <<$$, _/binary>>}, _PubSub, _Topic, _AclResult, _Config) -> ok;
 do_check_acl(#{username := <<"dashboard">>}, _PubSub, _Topic, _AclResult, _Config) -> ok;
-do_check_acl(#{username := Uid, clientid := <<$^, _/bytes>>}, _PubSub, Topic, _AclResult, _Config) ->
-    ?LOG_GLD("ACL Tenant ZL-IoT-2.0: : ~s", [Uid]),
-    Params = #{user_id=> Uid
-	      ,topic => Topic
+do_check_acl(#{username := Uid, clientid := <<$^, _/bytes>>}, _PubSub, <<"enno", _/binary>> = Topic, _AclResult, _Config) ->
+    ?LOG_GLD("ACL Tenant ZL-IoT-2.0 UID: ~s, Topic: ~s", [Uid, Topic]), {stop, allow};
+do_check_acl(#{username := Uid, clientid := <<$^, _/bytes>>, password := Token}, PubSub, Topic, _AclResult, _Config) ->
+    ?LOG_GLD("ACL Tenant ZL-IoT-2.0 UID: ~s, Token: ~s, Topic: ~s", [Uid, Token, Topic]),
+    [_Prefix| Rest] = emqx_topic:words(Topic),
+    [PrdId| Rest1] = Rest,
+    [DevId| Rest2] = Rest1,
+    Params = #{user_id => Uid
+	      ,device_id => DevId 
 	      },
     {ok, Path} = application:get_env(?WEB_HOOK_APP, acl_path),
-    Headers = application:get_env(?WEB_HOOK_APP, headers, []),
-    case emqx_web_hook:send_http_request(Uid, Params, Path, Headers) of
+    {ok, Headers} = application:get_env(?WEB_HOOK_APP, headers, []),
+    NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>} | Headers],
+    case emqx_auth_hook:send_http_request(Uid, Params, Path, NHeaders, post) of
 	{ok, RawData} -> 
-	    ?LOG_GLD("WebHook rps: ~p", [RawData]),
-	    {stop, allow};
-	{error, _ErrMsg} -> 
+	    ?LOG_GLD("ACL WebHook Rsp OK: ~p", [RawData]),
+	    acl_match(PubSub, Topic, DevId, PrdId, 1);
+	{error, ErrMsg} -> 
+	    ?LOG_GLD("ACL WebHook Rsp Err: ~p", [ErrMsg]),
 	    {stop, deny}
-end;
+    end;
 %% do_check_acl(#{username := DevPrdTs, clientid := <<0:2,_Rest/bits>>}, PubSub, Topic, _AclResult, _Config) ->
 do_check_acl(#{username := DevPrdTs}, PubSub, Topic, _AclResult, _Config) ->
     case binary:split(DevPrdTs,<<$&>>,[global]) of

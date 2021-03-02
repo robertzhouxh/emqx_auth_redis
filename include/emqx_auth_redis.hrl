@@ -1,6 +1,6 @@
 
 -define(APP, emqx_auth_redis).
--define(WEB_HOOK_APP, emqx_web_hook).
+-define(WEB_HOOK_APP, emqx_auth_hook).
 
 -record(auth_metrics, {
         success = 'client.auth.success',

@@ -21,23 +21,27 @@ register_metrics() ->
     lists:foreach(fun emqx_metrics:ensure/1, ?AUTH_METRICS).
 
 %% check user
-check(ClientInfo = #{password := Token, clientid := <<$^, _/binary>>, username := Uid}, AuthResult, _State) ->
-    Params = #{user_id=> maybe(Uid)
-	      ,token => Token
-	      },
-    ?LOG_GLD("AUTH Redis ZL-IoT-2.0 Tenant Params: ~p", [Params]),
+check(ClientInfo = #{password := Token, clientid := <<$^, ClientId/binary>>, username := Uid}, AuthResult, _State) ->
+    ?LOG_GLD("AUTH Redis ZL-IoT-2.0 Tenant Uid: ~s, Token: ~s\n", [Uid, Token]),
     {ok, Path} = application:get_env(?WEB_HOOK_APP, auth_path),
-    Headers = application:get_env(?WEB_HOOK_APP, headers, []),
-    case emqx_web_hook:send_http_request(Uid, Params, Path, Headers) of
-	{ok, RawData} -> 
-	    ?LOG_GLD("WebHook rps: ~p", [RawData]),
-	    {stop, AuthResult#{is_superuser => is_superuser(RawData),
-			       anonymous    => false,
-			       auth_result  => success}};
-	{error, ErrMsg} -> 
-	    {stop, AuthResult#{is_superuser => false,
-			       anonymous    => false,
-			       auth_result  => ErrMsg}}
+    case is_superuser(Uid)  of 
+	true -> 
+	    SuperPsw = application:get_env(?WEB_HOOK_APP, super_password),
+	    case check_pass(Token, SuperPsw) of
+		ok -> {stop, AuthResult#{is_superuser => true, anonymous => false, auth_result => success}};
+		{error, ErrMsg} -> {stop, AuthResult#{anonymous => false, auth_result  => ErrMsg}}
+	    end;
+	_ -> 
+	    %% {ok, Headers} = application:get_env(?WEB_HOOK_APP, headers),
+	    NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>}],
+	    case emqx_auth_hook:send_http_request(ClientId, #{}, Path, NHeaders, get) of
+		{ok, RawData} -> 
+		    ?LOG_GLD("WebHook Rsp: ~p", [RawData]),
+		    {stop, AuthResult#{is_superuser => fasle, anonymous    => false, auth_result  => success}};
+		{error, ErrMsg} -> 
+		    ?LOG_GLD("WebHook Err: ~p", [ErrMsg]),
+		    {stop, AuthResult#{anonymous    => false, auth_result  => ErrMsg}}
+	    end
     end;
 
 %% check device
@@ -108,11 +112,21 @@ is_superuser(Pool, Type, SuperCmd, _ClientInfo, Timeout) ->
         {ok, _Other}    -> false;
         {error, _Error} -> false
     end.
-is_superuser(RawData) ->
-    case emqx_json:safe_decode(RawData)  of 
-	{ok, Data} -> maps:get(Data, <<"is_super">>);
-        {error, ErrMsg} -> false
-    end.
+
+is_superuser(Uid) when is_binary (Uid) -> 
+    Super = application:get_env(?WEB_HOOK_APP, super_account),
+    case Uid of
+	Super -> true;
+	_ -> false
+    end;
+is_superuser(_Uid) -> false.
+
+
+%% is_superuser(RawData) when is_binary (RawData) ->
+%%     case emqx_json:safe_decode(RawData)  of 
+%% 	{ok, Data} -> maps:get(Data, <<"is_super">>);
+%%         {error, ErrMsg} -> false
+%%     end.
 
 %% check_pass({PassHash, DeviceToken}, ClientId, DevPrdTs) ->
 %%     ?LOG_GLD("AUTH Redis PassHash: ~p, DeviceToken: ~p, ClientId: ~p, DevPrdTs: ~p", [PassHash, DeviceToken, ClientId, DevPrdTs]),
@@ -132,7 +146,7 @@ is_superuser(RawData) ->
 %% 		      ,token => DeviceToken 
 %% 		      },
 %% 	    ?LOG_GLD("AUTH Redis ZL-IoT-2.0 Tenant Params: ~p", [Params]),
-%% 	    emqx_web_hook:send_http_request(ClientId, Params);
+%% 	    emqx_auth_hook:send_http_request(ClientId, Params);
 %% 	[ClientId] -> 
 %% 	    ?LOG_GLD("Auth Redis ZL-IoT-1.0: ClientId: ~s", [ClientId]),
 %% 	    check_pass({PassHash,DeviceToken},2#00011100)
@@ -150,7 +164,7 @@ check_pass({PassHash, DeviceToken},  <<1:2,_Mode:2, Algr:2,_Fmt:1,_Shadow:1,  De
 	      ,algr => Algr
               },
     ?LOG_GLD("AUTH Redis ZL-IoT-2.0 Tenant Params: ~p", [Params]),
-    emqx_web_hook:send_http_request(DevId, Params);
+    emqx_auth_hook:send_http_request(DevId, Params);
 check_pass(_, _, _) -> {error, invalid_client_type}.
 
 check_pass(PassHash, PassHash) -> ok;

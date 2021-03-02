@@ -22,6 +22,7 @@ start(_StartType, _StartArgs) ->
     if_cmd_enabled(acl_cmd,  fun load_acl_hook/1),
     translate_env(),
     {ok, PoolOpts} = application:get_env(?WEB_HOOK_APP, pool_opts),
+    io:format("WebHook-PoolOpts: ~p~n", [PoolOpts]),
     ehttpc_sup:start_pool(?WEB_HOOK_APP, PoolOpts),
     {ok, Sup}.
 
@@ -83,7 +84,7 @@ translate_env() ->
                                       _ -> 80
                                   end),
     Path = path(Path0),
-    PoolSize = application:get_env(?WEB_HOOK_APP, pool_size, 32),
+    PoolSize = application:get_env(?WEB_HOOK_APP, pool_size, 8),
     {Inet, Host} = parse_host(Host0),
     MoreOpts = case Scheme of
                    "http" ->
@@ -120,6 +121,7 @@ translate_env() ->
     %% application:set_env(?WEB_HOOK_APP, path, Path),
     application:set_env(?WEB_HOOK_APP, pool_opts, PoolOpts),
     Headers = application:get_env(?WEB_HOOK_APP, headers, []),
+    io:format("webhook-headers: ~p~n", [Headers]),
     NHeaders = set_content_type(Headers),
     application:set_env(?WEB_HOOK_APP, headers, NHeaders).
 
