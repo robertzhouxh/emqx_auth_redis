@@ -194,6 +194,9 @@ end}.
   [{Trans(K, V)} || {[_, _, _, K], V} <- Headers]
 end}.
 
+{translation, "emqx_auth_hook.super_account", fun(Conf) -> V = cuttlefish:conf_get("web.hook.api.super_account", Conf), list_to_binary(string:trim(V)) end}.
+{translation, "emqx_auth_hook.super_password", fun(Conf) -> V = cuttlefish:conf_get("web.hook.api.super_password", Conf), list_to_binary(string:trim(V)) end}.
+
 %% end web-hook
 
 {translation, "emqx_auth_redis.password_hash", fun(Conf) ->
@@ -205,3 +208,4 @@ end}.
     _                -> plain
   end
 end}.
+
