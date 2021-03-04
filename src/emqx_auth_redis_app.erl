@@ -21,8 +21,8 @@ start(_StartType, _StartArgs) ->
     if_cmd_enabled(auth_cmd, fun load_auth_hook/1),
     if_cmd_enabled(acl_cmd,  fun load_acl_hook/1),
     translate_env(),
-    {ok, PoolOpts} = application:get_env(?WEB_HOOK_APP, pool_opts),
-    io:format("WebHook-PoolOpts: ~p~n", [PoolOpts]),
+    {ok, PoolOpts} = application:get_env(?WEB_HOOK_APP, web_pool_opts),
+    io:format("WebHook-web_pool_opts: ~p~n", [PoolOpts]),
     ehttpc_sup:start_pool(?WEB_HOOK_APP, PoolOpts),
     {ok, Sup}.
 
@@ -84,16 +84,16 @@ translate_env() ->
                                       _ -> 80
                                   end),
     Path = path(Path0),
-    PoolSize = application:get_env(?WEB_HOOK_APP, pool_size, 8),
+    PoolSize = application:get_env(?WEB_HOOK_APP, web_pool_size, 8),
     {Inet, Host} = parse_host(Host0),
     MoreOpts = case Scheme of
                    "http" ->
                        [{transport_opts, [Inet]}];
                    "https" ->
-                       CACertFile = application:get_env(?WEB_HOOK_APP, cafile, undefined),
-                       CertFile = application:get_env(?WEB_HOOK_APP, certfile, undefined),
-                       KeyFile = application:get_env(?WEB_HOOK_APP, keyfile, undefined),
-                       {ok, Verify} = application:get_env(?WEB_HOOK_APP, verify),
+                       CACertFile = application:get_env(?WEB_HOOK_APP, web_cafile, undefined),
+                       CertFile = application:get_env(?WEB_HOOK_APP, web_certfile, undefined),
+                       KeyFile = application:get_env(?WEB_HOOK_APP, web_keyfile, undefined),
+                       {ok, Verify} = application:get_env(?WEB_HOOK_APP, web_verify),
                        VerifyType = case Verify of
                                        true -> verify_peer;
                                        false -> verify_none
@@ -119,7 +119,7 @@ translate_env() ->
                 {retry, 5},
                 {retry_timeout, 1000}] ++ MoreOpts,
     %% application:set_env(?WEB_HOOK_APP, path, Path),
-    application:set_env(?WEB_HOOK_APP, pool_opts, PoolOpts),
+    application:set_env(?WEB_HOOK_APP, web_pool_opts, PoolOpts),
     Headers = application:get_env(?WEB_HOOK_APP, headers, []),
     io:format("webhook-headers: ~p~n", [Headers]),
     NHeaders = set_content_type(Headers),
