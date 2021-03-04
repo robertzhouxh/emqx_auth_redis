@@ -128,76 +128,76 @@ end}.
   {datatype, string}
 ]}.
 
-%% for web-hook -----------------------------------------
+%% ---------------------  for web.hook --------------------------
 
-{mapping, "web.hook.api.super_account", "emqx_auth_redis.super_account", [
+{mapping, "auth.redis.super_account", "emqx_auth_redis.super_account", [
   {datatype, string},
   {default, ""}
 ]}.
 
-{mapping, "web.hook.api.super_password", "emqx_auth_redis.super_password", [
+{mapping, "auth.redis.super_password", "emqx_auth_redis.super_password", [
   {datatype, string},
   {default, ""}
 ]}.
 
-{mapping, "web.hook.api.url", "emqx_auth_redis.url", [
+{mapping, "auth.redis.url", "emqx_auth_redis.url", [
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.api.auth_path", "emqx_auth_redis.auth_path", [
+{mapping, "auth.redis.auth_path", "emqx_auth_redis.auth_path", [
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.api.acl_path", "emqx_auth_redis.acl_path", [
+{mapping, "auth.redis.acl_path", "emqx_auth_redis.acl_path", [
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.ssl.cafile", "emqx_auth_redis.web_cafile", [
+{mapping, "auth.redis.ssl.web_cafile", "emqx_auth_redis.web_cafile", [
   {default, ""},
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.ssl.certfile", "emqx_auth_redis.web_certfile", [
+{mapping, "auth.redis.ssl.web_certfile", "emqx_auth_redis.web_certfile", [
   {default, ""},
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.ssl.keyfile", "emqx_auth_redis.web_keyfile", [
+{mapping, "auth.redis.ssl.web_keyfile", "emqx_auth_redis.web_keyfile", [
   {default, ""},
   {datatype, string}
 ]}.
 
-{mapping, "web.hook.ssl.verify", "emqx_auth_redis.web_verify", [
+{mapping, "auth.redis.ssl.web_verify", "emqx_auth_redis.web_verify", [
   {default, false},
   {datatype, {enum, [true, false]}}
 ]}.
 
-{mapping, "web.hook.encode_payload", "emqx_auth_redis.encode_payload", [
+{mapping, "auth.redis.encode_payload", "emqx_auth_redis.encode_payload", [
   {default, undefined},
   {datatype, {enum, [base62, base64]}}
 ]}.
 
-{mapping, "web.hook.pool_size", "emqx_auth_redis.web_pool_size", [
+{mapping, "auth.redis.web_pool_size", "emqx_auth_redis.web_pool_size", [
    {default, 32},
    {datatype, integer}
  ]}.
 
-{mapping, "web.hook.headers.$name", "emqx_auth_redis.headers", [
+{mapping, "auth.redis.headers.$name", "emqx_auth_redis.headers", [
   {datatype, string}
 ]}.
 
 {translation, "emqx_auth_redis.headers", fun(Conf) ->
-  Headers = cuttlefish_variable:filter_by_prefix("web.hook.headers", Conf),
+  Headers = cuttlefish_variable:filter_by_prefix("auth.redis.headers", Conf),
   Trans = fun ("authorization", V) -> {<<"Authorization">>, list_to_binary(string:trim(V))};
               (K, V)  -> {list_to_binary(string:trim(K)), list_to_binary(string:trim(V))}
           end,
   [{Trans(K, V)} || {[_, _, _, K], V} <- Headers]
 end}.
 
-{translation, "emqx_auth_redis.super_account", fun(Conf) -> V = cuttlefish:conf_get("web.hook.api.super_account", Conf), list_to_binary(string:trim(V)) end}.
-{translation, "emqx_auth_redis.super_password", fun(Conf) -> V = cuttlefish:conf_get("web.hook.api.super_password", Conf), list_to_binary(string:trim(V)) end}.
+{translation, "emqx_auth_redis.super_account", fun(Conf) -> V = cuttlefish:conf_get("auth.redis.api.super_account", Conf), list_to_binary(string:trim(V)) end}.
+{translation, "emqx_auth_redis.super_password", fun(Conf) -> V = cuttlefish:conf_get("auth.redis.api.super_password", Conf), list_to_binary(string:trim(V)) end}.
 
-%% end web-hook
+%% ---------------------  end web.hook --------------------------
 
 {translation, "emqx_auth_redis.password_hash", fun(Conf) ->
   HashValue = cuttlefish:conf_get("auth.redis.password_hash", Conf),
