@@ -124,12 +124,6 @@ end}.
   {datatype, string}
 ]}.
 
-{mapping, "auth.redis.acl_cmd", "emqx_auth_redis.acl_cmd", [
-  {datatype, string}
-]}.
-
-%% ---------------------  for web.hook --------------------------
-
 {mapping, "auth.redis.super_account", "emqx_auth_redis.super_account", [
   {datatype, string},
   {default, ""}
@@ -139,6 +133,12 @@ end}.
   {datatype, string},
   {default, ""}
 ]}.
+
+{mapping, "auth.redis.acl_cmd", "emqx_auth_redis.acl_cmd", [
+  {datatype, string}
+]}.
+
+%% ---------------------  for web.hook --------------------------
 
 {mapping, "auth.redis.url", "emqx_auth_redis.url", [
   {datatype, string}
@@ -194,11 +194,10 @@ end}.
   [{Trans(K, V)} || {[_, _, _, K], V} <- Headers]
 end}.
 
-{translation, "emqx_auth_redis.super_account", fun(Conf) -> V = cuttlefish:conf_get("auth.redis.api.super_account", Conf), list_to_binary(string:trim(V)) end}.
-{translation, "emqx_auth_redis.super_password", fun(Conf) -> V = cuttlefish:conf_get("auth.redis.api.super_password", Conf), list_to_binary(string:trim(V)) end}.
-
 %% ---------------------  end web.hook --------------------------
 
+{translation, "emqx_auth_redis.super_account", fun(Conf) -> V = cuttlefish:conf_get("auth.redis.super_account", Conf), list_to_binary(string:trim(V)) end}.
+{translation, "emqx_auth_redis.super_password", fun(Conf) -> V = cuttlefish:conf_get("auth.redis.super_password", Conf), list_to_binary(string:trim(V)) end}.
 {translation, "emqx_auth_redis.password_hash", fun(Conf) ->
   HashValue = cuttlefish:conf_get("auth.redis.password_hash", Conf),
   case string:tokens(HashValue, ",") of
