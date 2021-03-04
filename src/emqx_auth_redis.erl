@@ -84,7 +84,7 @@ check(ClientInfo = #{password := Password, clientid := ClientId, username := Dev
     end.
 
 oldzl_check(DeviceId, Password, AuthResult, #{timeout := Timeout, type := Type, pool := Pool}) ->
-    AuthCmd = [<<"HGET">>, <<"SHARE##device_service#MQTT_DEVICE:", DeviceId/binary>>, <<"device_token">>],
+    AuthCmd = [<<"HGET">>, <<"device:m_did:", DeviceId/binary>>, <<"device_token">>],
     CheckPass = 
 	case emqx_auth_redis_cli:q(Pool, Type, AuthCmd, Timeout) of
 	    {ok, [undefined|_]} -> {error, not_found};
