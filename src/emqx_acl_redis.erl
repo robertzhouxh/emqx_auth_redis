@@ -36,14 +36,12 @@ do_check_acl(#{username := Uid, clientid := <<$^, _/bytes>>, password := Token},
     ?LOG_GLD("ACL Tenant ZL-IoT-2.0 UID: ~s, Token: ~s, Topic: ~s", [Uid, Token, Topic]),
     [_Prefix| Rest] = emqx_topic:words(Topic),
     [PrdId| Rest1] = Rest,
-    [DevId| Rest2] = Rest1,
-    Params = #{user_id => Uid
-	      ,device_id => DevId 
-	      },
+    [DevId| _Rest2] = Rest1,
     {ok, Path} = application:get_env(?WEB_HOOK_APP, acl_path),
     {ok, Headers} = application:get_env(?WEB_HOOK_APP, headers, []),
+    Params = #{deviceId => DevId},
     NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>} | Headers],
-    case emqx_auth_hook:send_http_request(Uid, Params, Path, NHeaders, post) of
+    case emqx_auth_hook:send_http_request(Uid, Params, Path, Headers, post) of
 	{ok, RawData} -> 
 	    ?LOG_GLD("ACL WebHook Rsp OK: ~p", [RawData]),
 	    acl_match(PubSub, Topic, DevId, PrdId, 1);
