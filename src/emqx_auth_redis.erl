@@ -50,15 +50,19 @@ check(ClientInfo = #{password := Token, clientid := <<$^, ClientId/binary>>, use
 %% check device
 check(ClientInfo = #{password := Password, clientid := ClientId, username := DevPrdTs}, AuthResult, #{timeout := Timeout, type := Type, pool := Pool} = State) ->
     case binary:split(DevPrdTs,<<$&>>,[global]) of
-	[DevId,PrdId,_Ts] ->
+	[DevId,PrdId,Ts] ->
 	    AuthCmd = [<<"HMGET">>, <<"device:m_did:", DevId/binary>>, <<"device_token">>, <<"model_id">>],
+	    Now = erlang:system_time(second),
+	    TsArg = list_to_integer(binary_to_list(Ts)),
+	    ?LOG_GLD("Now: ~p, TsArg: ~p, Now-TsArg: ~p", [Now, TsArg, (Now-TsArg)]),
 	    CheckPass = 
-		case emqx_auth_redis_cli:q(Pool, Type, AuthCmd, Timeout) of
+		case (Now-TsArg) < 5 andalso emqx_auth_redis_cli:q(Pool, Type, AuthCmd, Timeout) of
 		    {ok, [undefined|_]} -> {error, not_found};
-		    {ok, DeviceToken} when is_binary(DeviceToken) -> check_pass({Password, DeviceToken}, ClientId, DevPrdTs);
+		    false -> {error, invalid_timestamp};
+		    %%{ok, DeviceToken} when is_binary(DeviceToken) -> check_pass({Password, DeviceToken}, ClientId, DevPrdTs);
 		    {ok, [DeviceToken, PrdId]} when is_binary(DeviceToken) -> check_pass({Password, DeviceToken}, ClientId, DevPrdTs);
 		    {ok, [DeviceToken, ProductId|_]} when is_binary(DeviceToken) -> 
-			?LOG_GLD("[Redis] Auth from redis DeviceToken: ~p, ProductId:~p", [DeviceToken, ProductId]), {error, invalid_productid};
+			?LOG(error, "[Redis] Auth from redis DeviceToken: ~s, invalid ProductId:~s", [DeviceToken, ProductId]), {error, invalid_productid};
 		    {error, Reason} -> ?LOG(error, "[Redis] Command: ~p failed: ~p", [AuthCmd, Reason]), {error, not_found}
 		end,
 	    case CheckPass of
