@@ -26,7 +26,7 @@ check(ClientInfo = #{password := Token, clientid := <<$^, ClientId/binary>>, use
     ?LOG_GLD("AUTH Redis ZL-IoT-2.0 Tenant Uid: ~p, Token: ~p~n, SuperUser: ~p", [Uid, Token, SuperUser]),
     case is_superuser(Uid, SuperUser)  of 
 	true -> 
-	    ?LOG_GLD("Check Super: ~p~n", [SuperUser]),
+	    ?LOG_GLD("Check Super: ~s~n", [SuperUser]),
 	    {ok, SuperPsw} = application:get_env(?WEB_HOOK_APP, super_password),
 	    case check_pass(Token, SuperPsw) of
 		ok -> {stop, AuthResult#{is_superuser => true, anonymous => false, auth_result => success}};
@@ -39,11 +39,11 @@ check(ClientInfo = #{password := Token, clientid := <<$^, ClientId/binary>>, use
 	    NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>}],
 	    case emqx_auth_hook:send_http_request(ClientId, #{}, Path, NHeaders, get) of
 		{ok, RawData} -> 
-		    ?LOG_GLD("WebHook Rsp: ~p", [RawData]),
-		    {stop, AuthResult#{is_superuser => fasle, anonymous    => false, auth_result  => success}};
+		    ?LOG_GLD("WebHook Rsp:~n~s~n", [RawData]),
+		    {stop, AuthResult#{is_superuser => false, anonymous => false, auth_result => success}};
 		{error, ErrMsg} -> 
-		    ?LOG_GLD("WebHook Err: ~p", [ErrMsg]),
-		    {stop, AuthResult#{anonymous    => false, auth_result  => ErrMsg}}
+		    ?LOG_GLD("WebHook Err: ~s", [ErrMsg]),
+		    {stop, AuthResult#{anonymous => false, auth_result  => ErrMsg}}
 	    end
     end;
 
