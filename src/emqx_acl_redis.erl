@@ -21,7 +21,7 @@ register_metrics() ->
     lists:foreach(fun emqx_metrics:ensure/1, ?ACL_METRICS).
 
 check_acl(ClientInfo, PubSub, Topic, AclResult, Config) ->
-    ?LOG_GLD("[ACL] check ClientInfo: ~p~n op Topic: ~s~n", [ClientInfo, Topic]),
+    %% ?LOG_GLD("[ACL] check ClientInfo: ~p~n op Topic: ~s~n", [ClientInfo, Topic]),
     case do_check_acl(ClientInfo, PubSub, Topic, AclResult, Config) of
         ok -> emqx_metrics:inc(?ACL_METRICS(ignore)), ok;
         {stop, allow} -> emqx_metrics:inc(?ACL_METRICS(allow)), {stop, allow};
