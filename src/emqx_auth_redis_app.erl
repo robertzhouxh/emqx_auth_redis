@@ -22,7 +22,7 @@ start(_StartType, _StartArgs) ->
     if_cmd_enabled(acl_cmd,  fun load_acl_hook/1),
     translate_env(),
     {ok, PoolOpts} = application:get_env(?WEB_HOOK_APP, web_pool_opts),
-    io:format("WebHook-web_pool_opts: ~p~n", [PoolOpts]),
+    io:format("[WebHook] pool_opts: ~p~n", [PoolOpts]),
     ehttpc_sup:start_pool(?WEB_HOOK_APP, PoolOpts),
     {ok, Sup}.
 

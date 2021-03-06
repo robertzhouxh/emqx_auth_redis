@@ -19,6 +19,7 @@ start_link() ->
 
 init([]) ->
     {ok, Server} = application:get_env(?APP, server),
+    io:format("[Redis] Opts: ~p~n", [Server]),
     {ok, {{one_for_one, 10, 100}, pool_spec(Server)}}.
 
 pool_spec(Server) ->

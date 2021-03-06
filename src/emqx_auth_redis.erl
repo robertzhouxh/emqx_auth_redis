@@ -35,9 +35,9 @@ check(ClientInfo = #{password := Token, clientid := <<$^, ClientId/binary>>, use
 	_ -> 
 	    ?LOG_GLD("Check Normal: ~p~n", [Uid]),
 	    {ok, Path} = application:get_env(?WEB_HOOK_APP, auth_path),
-	    %% {ok, Headers} = application:get_env(?WEB_HOOK_APP, headers),
-	    NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>}],
-	    case emqx_auth_hook:send_http_request(ClientId, #{}, Path, NHeaders, get) of
+	    %%{ok, Headers} = application:get_env(?WEB_HOOK_APP, headers),
+	    %%NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>}|Headers],
+	    case emqx_auth_hook:send_http_request(ClientId, #{}, Path, [{<<"Authorization">>, <<"bearer ", Token/binary>>}], get) of
 		{ok, RawData} -> 
 		    ?LOG_GLD("WebHook Rsp:~n~s~n", [RawData]),
 		    {stop, AuthResult#{is_superuser => false, anonymous => false, auth_result => success}};

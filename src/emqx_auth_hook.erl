@@ -14,7 +14,7 @@
 
 send_http_request(ClientID, Params, Path, Headers, Method) when Method == post orelse update ->
     Body = emqx_json:encode(Params),
-    ?LOG_GLD("Method: ~p, Send to: ~0p, params: ~0s", [Method, Path, Body]),
+    ?LOG_GLD("Method: ~p, Send to: ~0p, Body: ~s", [Method, Path, Body]),
     case ehttpc:request(ehttpc_pool:pick_worker(?WEB_HOOK_APP, ClientID), Method, {Path, Headers, Body}) of
         {ok, StatusCode, _Hdrs} when StatusCode >= 200 andalso StatusCode < 300 ->
             ok;

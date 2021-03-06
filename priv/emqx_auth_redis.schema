@@ -191,7 +191,9 @@ end}.
   Trans = fun ("authorization", V) -> {<<"Authorization">>, list_to_binary(string:trim(V))};
               (K, V)  -> {list_to_binary(string:trim(K)), list_to_binary(string:trim(V))}
           end,
-  [{Trans(K, V)} || {[_, _, _, K], V} <- Headers]
+  %% [Trans(K, V) || {[_, _, _, K], V} <- Headers, K =/= "authorization"]
+  %% make sure no authorization http header
+  [{list_to_binary(string:trim(K)), list_to_binary(string:trim(V))} || {[_, _, _, K], V} <- Headers, K =/= "authorization"]
 end}.
 
 %% ---------------------  end web.hook --------------------------
