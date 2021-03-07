@@ -11,6 +11,11 @@
 -include_lib("emqx/include/emqx.hrl").
 -include_lib("emqx/include/logger.hrl").
 
+-import(emqx_auth_http_cli,
+        [ request/6
+	, feedvar/2
+        ]).
+
 -export([ register_metrics/0
         , check_acl/5
         , description/0
@@ -28,31 +33,44 @@ check_acl(ClientInfo, PubSub, Topic, AclResult, Config) ->
         {stop, deny} -> emqx_metrics:inc(?ACL_METRICS(deny)), {stop, deny}
     end.
 
-do_check_acl(#{username := <<$$, _/binary>>}, _PubSub, _Topic, _AclResult, _Config) -> ok;
-do_check_acl(#{username := <<"dashboard">>}, _PubSub, _Topic, _AclResult, _Config) -> ok;
-do_check_acl(#{clientid := <<$^, _/bytes>>}, _PubSub, <<"enno", _/binary>> = Topic, _AclResult, _Config) -> {stop, allow};
-do_check_acl(#{username := UT, clientid := <<$^, _/bytes>>},  PubSub, Topic, _AclResult, _Config) ->
+do_check_acl(#{username := <<$$, _/binary>>}, _PubSub, _Topic, _AclResult, _State) -> ok;
+do_check_acl(#{username := <<"dashboard">>}, _PubSub, _Topic, _AclResult, _State) -> ok;
+do_check_acl(#{clientid := <<$^, _/bytes>>}, _PubSub, <<"enno", _/binary>>, _AclResult, _State) -> {stop, allow};
+do_check_acl(#{username := UT, clientid := <<$^, _/bytes>>},  PubSub, Topic, _AclResult, #{acl_req := AclReq, pool_http := PoolName}) ->
     ?LOG_GLD("ACL Tenant ZL-IoT-2.0 username&token: ~s, Topic: ~s~n", [UT, Topic]),
     [_Prefix, PrdId , DevId | _Rest] = emqx_topic:words(Topic),
     case binary:split(UT,<<$&>>,[global]) of
-	[Uid,Token] ->
-	    Params = #{deviceId => DevId},
-	    {ok, Path} = application:get_env(?WEB_HOOK_APP, acl_path),
-	    Headers = application:get_env(?WEB_HOOK_APP, headers, []),
-	    NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>} | Headers],
-	    case emqx_auth_hook:send_http_request(Uid, Params, Path, NHeaders, post) of
-		{ok, RawData} -> 
-		    ?LOG_GLD("ACL WebHook Rsp OK: ~p", [RawData]),
+	[_Uid,Token] ->
+	    %% Params = #{deviceId => DevId},
+	    %% {ok, Path} = application:get_env(?WEB_HOOK_APP, acl_path),
+	    %% Headers = application:get_env(?WEB_HOOK_APP, headers, []),
+	    %% NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>} | Headers],
+	    %% case emqx_auth_hook:send_http_request(Uid, Params, Path, NHeaders, post) of
+	    %% 	{ok, RawData} -> 
+	    %% 	    ?LOG_GLD("ACL WebHook Rsp OK: ~p", [RawData]),
+	    %% 	    acl_match(PubSub, Topic, DevId, PrdId, 0);
+	    %% 	{error, ErrMsg} -> 
+	    %% 	    ?LOG_GLD("ACL WebHook Rsp Err: ~p", [ErrMsg]),
+	    %% 	    {stop, deny}
+	    %% end;
+	    %% case check_acl_request(PoolName, AclReq, ClientInfo1) of
+            case check_acl_request(PoolName, AclReq, #{deviceId => DevId, token => Token}) of
+		{ok, 200, <<"ignore">>} -> ok;
+		{ok, 200, Body}    -> 
+	            ?LOG_GLD("ACL WebHook Rsp OK: ~ts~n", [Body]),
+		    %% {stop, allow};
 		    acl_match(PubSub, Topic, DevId, PrdId, 0);
-		{error, ErrMsg} -> 
-		    ?LOG_GLD("ACL WebHook Rsp Err: ~p", [ErrMsg]),
-		    {stop, deny}
+		{ok, _Code, _Body}  -> {stop, deny};
+		{error, Error}      ->
+		    ?LOG(error, "Request ACL path ~s, error: ~p",
+			 [AclReq#http_request.path, Error]),
+		    ok
 	    end;
 	_ ->
 	    ?LOG_GLD("ACL ZL-IoT-2.0: Invalid username: ~s", [UT]),
 	    {stop, deny}
     end;
-do_check_acl(#{username := DevPrdTs}, PubSub, Topic, _AclResult, _Config) ->
+do_check_acl(#{username := DevPrdTs}, PubSub, Topic, _AclResult, _State) ->
     ?LOG_GLD("ACL Device ZL-IoT-2.0 DeviceId: ~s, Topic: ~s~n", [DevPrdTs, Topic]),
     case binary:split(DevPrdTs,<<$&>>,[global]) of
 	%% ZL-2.0
@@ -67,6 +85,13 @@ do_check_acl(#{username := DevPrdTs}, PubSub, Topic, _AclResult, _Config) ->
 	    ?LOG_GLD("ACL Redis ZL-IoT-1.0: Invalid DevPrdTs: ~s", [DevPrdTs]),
 	    {stop, deny}
     end.
+
+check_acl_request(PoolName, #http_request{path = Path,
+                                          method = Method,
+                                          headers = Headers,
+                                          params = Params,
+                                          request_timeout = RequestTimeout}, Meta) ->
+    request(PoolName, Method, Path, Headers, maps:from_list(feedvar(Params, Meta)), RequestTimeout).
 
 acl_match(PubSub, Topic, DevId, null, 0) ->
     D_RULES = ?O_D_RULES(DevId),

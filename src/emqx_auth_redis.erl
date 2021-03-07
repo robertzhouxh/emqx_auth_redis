@@ -11,6 +11,11 @@
 -include_lib("emqx/include/emqx.hrl").
 -include_lib("emqx/include/logger.hrl").
 
+-import(emqx_auth_http_cli,
+        [ request/6
+        , feedvar/2
+        ]).
+
 -export([ register_metrics/0
         , check/3
         , description/0
@@ -21,29 +26,44 @@ register_metrics() ->
     lists:foreach(fun emqx_metrics:ensure/1, ?AUTH_METRICS).
 
 %% check user
-check(ClientInfo = #{password := Token, clientid := <<$^, ClientId/binary>>, username := Uid}, AuthResult, _State) ->
-    {ok, SuperUser} = application:get_env(?WEB_HOOK_APP, super_account),
+%check(ClientInfo = #{password := Token, clientid := <<$^, ClientId/binary>>, username := Uid}, AuthResult, _State) ->
+check(ClientInfo = #{password := Token, clientid := <<$^, ClientId/binary>>, username := Uid}, AuthResult, #{pool_http := PoolName, auth_req := AuthReq}) ->
+    {ok, SuperUser} = application:get_env(?APP, super_account),
     ?LOG_GLD("AUTH Redis ZL-IoT-2.0 Tenant Uid: ~p, Token: ~p~n, SuperUser: ~p", [Uid, Token, SuperUser]),
     case is_superuser(Uid, SuperUser)  of 
 	true -> 
 	    ?LOG_GLD("Check Super: ~s~n", [SuperUser]),
-	    {ok, SuperPsw} = application:get_env(?WEB_HOOK_APP, super_password),
+	    {ok, SuperPsw} = application:get_env(?APP, super_password),
 	    case check_pass(Token, SuperPsw) of
 		ok -> {stop, AuthResult#{is_superuser => true, anonymous => false, auth_result => success}};
 		{error, ErrMsg} -> {stop, AuthResult#{anonymous => false, auth_result  => ErrMsg}}
 	    end;
 	_ -> 
 	    ?LOG_GLD("Check Normal: ~p~n", [Uid]),
-	    {ok, Path} = application:get_env(?WEB_HOOK_APP, auth_path),
-	    %%{ok, Headers} = application:get_env(?WEB_HOOK_APP, headers),
-	    %%NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>}|Headers],
-	    case emqx_auth_hook:send_http_request(ClientId, #{}, Path, [{<<"Authorization">>, <<"bearer ", Token/binary>>}], get) of
-		{ok, RawData} -> 
-		    ?LOG_GLD("WebHook Rsp:~n~s~n", [RawData]),
-		    {stop, AuthResult#{is_superuser => false, anonymous => false, auth_result => success}};
-		{error, ErrMsg} -> 
-		    ?LOG_GLD("WebHook Err: ~s", [ErrMsg]),
-		    {stop, AuthResult#{anonymous => false, auth_result  => ErrMsg}}
+	    %% {ok, Path} = application:get_env(?APP, auth_path),
+	    %% case emqx_auth_hook:send_http_request(ClientId, #{}, Path, [{<<"Authorization">>, <<"bearer ", Token/binary>>}], get) of
+	    %% {ok, RawData} -> 
+	    %%     ?LOG_GLD("WebHook Rsp:~n~s~n", [RawData]),
+	    %%     {stop, AuthResult#{is_superuser => false, anonymous => false, auth_result => success}};
+	    %% {error, ErrMsg} -> 
+	    %%     ?LOG_GLD("WebHook Err: ~s", [ErrMsg]),
+	    %%     {stop, AuthResult#{anonymous => false, auth_result  => ErrMsg}}
+	    %% end
+	    case authenticate(PoolName, AuthReq, ClientInfo)  of
+		{ok, 200, <<"ignore">>} -> emqx_metrics:inc(?AUTH_METRICS(ignore)), ok;
+		{ok, 200, Body}  ->
+	            ?LOG_GLD("WebHook Rsp Body:~n~ts~n", [Body]),
+		    emqx_metrics:inc(?AUTH_METRICS(success)),
+		    {stop, AuthResult#{auth_result => success, anonymous   => false}};
+		{ok, Code, _Body} ->
+		    ?LOG(error, "Deny connection from path: ~s, response http code: ~p", [AuthReq#http_request.path, Code]),
+		    emqx_metrics:inc(?AUTH_METRICS(failure)),
+		    {stop, AuthResult#{auth_result => http_to_connack_error(Code), anonymous   => false}};
+		{error, Error} ->
+		    ?LOG(error, "Request auth path: ~s, error: ~p", [AuthReq#http_request.path, Error]),
+		    emqx_metrics:inc(?AUTH_METRICS(failure)),
+		    %%FIXME later: server_unavailable is not right.
+		    {stop, AuthResult#{auth_result => server_unavailable, anonymous => false}}
 	    end
     end;
 
@@ -109,6 +129,22 @@ oldzl_check(DeviceId, Password, AuthResult, #{timeout := Timeout, type := Type, 
 	    {stop, AuthResult#{auth_result => ResultCode, anonymous => false}}
     end.
     
+authenticate(PoolName, #http_request{path = Path, 
+				     method = Method, 
+				     headers = Headers,
+				     params = Params, 
+				     request_timeout = RequestTimeout}, #{password := Token} = ClientInfo) ->
+   NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>}|Headers],
+   request(PoolName, Method, Path, NHeaders, feedvar(Params, ClientInfo), RequestTimeout);
+authenticate(_,_,_) -> {error, invalid_args}.
+     
+http_to_connack_error(400) -> bad_username_or_password;
+http_to_connack_error(401) -> bad_username_or_password;
+http_to_connack_error(403) -> not_authorized;
+http_to_connack_error(429) -> banned;
+http_to_connack_error(503) -> server_unavailable;
+http_to_connack_error(504) -> server_busy;
+http_to_connack_error(_) -> server_unavailable.
 
 -spec(is_superuser(atom(), atom(), undefined|list(), emqx_types:client(), timeout()) -> boolean()).
 is_superuser(_Pool, _Type, undefined, _ClientInfo, _Timeout) -> false;

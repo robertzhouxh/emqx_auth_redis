@@ -2,6 +2,8 @@
 -define(APP, emqx_auth_redis).
 -define(WEB_HOOK_APP, emqx_auth_redis).
 
+-record(http_request, {method = post, path, headers, params, request_timeout}).
+
 -record(auth_metrics, {
         success = 'client.auth.success',
         failure = 'client.auth.failure',
