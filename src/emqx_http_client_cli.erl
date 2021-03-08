@@ -33,7 +33,6 @@ do_request(Method, PoolName, Req, Timeout) ->
 do_request(_Method, _PoolName, _Req, _Timeout, 0) ->
     {error, normal};
 do_request(Method, PoolName, Req, Timeout, Retry) ->
-    ?LOG_GLD("[HTTP] ==> method:[~s], poolName:[~s], Req:~p~n", [Method, PoolName, Req]),
     case emqx_http_client:request(Method, PoolName, Req, Timeout) of
         {error, normal} ->
 	    ?LOG_GLD("HTTP-Response] Resp error normal retry: ~p", [Retry-1]),
