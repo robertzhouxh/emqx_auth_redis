@@ -14,6 +14,7 @@
 -import(emqx_http_client_cli,
         [ request/6
 	, feedvar/2
+	, feedvar/3
         ]).
 
 -export([ register_metrics/0
@@ -26,16 +27,16 @@ register_metrics() ->
     lists:foreach(fun emqx_metrics:ensure/1, ?ACL_METRICS).
 
 check_acl(ClientInfo, PubSub, Topic, AclResult, Config) ->
-    %% ?LOG_GLD("[ACL] check ClientInfo: ~p~n op Topic: ~s~n", [ClientInfo, Topic]),
+    ?LOG_GLD("[ACL-CHECK] ClientInfo: ~p, on TOPIC: ~s", [ClientInfo, Topic]),
     case do_check_acl(ClientInfo, PubSub, Topic, AclResult, Config) of
         ok -> emqx_metrics:inc(?ACL_METRICS(ignore)), ok;
         {stop, allow} -> emqx_metrics:inc(?ACL_METRICS(allow)), {stop, allow};
         {stop, deny} -> emqx_metrics:inc(?ACL_METRICS(deny)), {stop, deny}
     end.
 
-do_check_acl(#{username := <<$$, _/binary>>}, _PubSub, _Topic, _AclResult, _State) -> ok;
-do_check_acl(#{username := <<"dashboard">>}, _PubSub, _Topic, _AclResult, _State) -> ok;
-do_check_acl(#{clientid := <<$^, _/bytes>>}, _PubSub, <<"enno", _/binary>>, _AclResult, _State) -> {stop, allow};
+do_check_acl(#{username := <<$$, _/binary>>}, _PubSub, _Topic, _AclResult, _Config) -> ok;
+do_check_acl(#{username := <<"dashboard">>}, _PubSub, _Topic, _AclResult, _Config) -> ok;
+do_check_acl(#{clientid := <<$^, _/bytes>>}, _PubSub, <<"enno", _/binary>>, _AclResult, _Config) -> {stop, allow};
 do_check_acl(#{username := Token, clientid := <<$^, _/bytes>>},  PubSub, Topic, _AclResult, #{acl_req := AclReq, pool_http := PoolName}) ->
     ?LOG_GLD("ACL Tenant ZL-IoT-2.0 token: ~ts, Topic: ~s~n", [Token, Topic]),
     [_Prefix, PrdId , DevId | _Rest] = emqx_topic:words(Topic),
@@ -52,7 +53,7 @@ do_check_acl(#{username := Token, clientid := <<$^, _/bytes>>},  PubSub, Topic, 
     %% 	    {stop, deny}
     %% end;
     %% case check_acl_request(PoolName, AclReq, ClientInfo1) of
-    case check_acl_request(PoolName, AclReq, #{deviceId => DevId, token => Token}) of
+    case check_acl_request(PoolName, AclReq, #{deviceId => DevId}) of
 	{ok, 200, Body} -> 
 	    ?LOG_GLD("ACL WebHook Rsp OK: ~ts~n", [Body]),
 	    acl_match(PubSub, Topic, DevId, PrdId, 0);
@@ -61,7 +62,7 @@ do_check_acl(#{username := Token, clientid := <<$^, _/bytes>>},  PubSub, Topic, 
 	    ?LOG(error, "Request ACL path ~s, error: ~p", 
 		 [AclReq#http_request.path, Error]), {stop, deny}
     end;
-do_check_acl(#{username := DevPrdTs}, PubSub, Topic, _AclResult, _State) ->
+do_check_acl(#{username := DevPrdTs}, PubSub, Topic, _AclResult, _Config) ->
     ?LOG_GLD("ACL Device ZL-IoT-2.0 DeviceId: ~s, Topic: ~s~n", [DevPrdTs, Topic]),
     case binary:split(DevPrdTs,<<$&>>,[global]) of
 	%% ZL-2.0
@@ -81,8 +82,9 @@ check_acl_request(PoolName, #http_request{path = Path,
                                           method = Method,
                                           headers = Headers,
                                           params = Params,
-                                          request_timeout = RequestTimeout}, Meta) ->
-    request(PoolName, Method, Path, Headers, maps:from_list(feedvar(Params, Meta)), RequestTimeout).
+                                          request_timeout = RequestTimeout}, PostData) ->
+    %% Data = maps:from_list(feedvar(Params, ClientInfo)),
+    request(PoolName, Method, Path, Headers, PostData, RequestTimeout).
 
 acl_match(PubSub, Topic, DevId, null, 0) ->
     D_RULES = ?O_D_RULES(DevId),

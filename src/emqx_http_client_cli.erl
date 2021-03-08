@@ -13,6 +13,7 @@
 
 request(PoolName, get, Path, Headers, _Params, Timeout) ->
     %% NewPath = Path ++ "?" ++ binary_to_list(cow_qs:qs(bin_kw(Params))),
+    ?LOG_GLD("[WEB-HTTP-GET] Path:~s~nHeader: ~p", [Path, Headers]),
     do_request(get, PoolName, {Path, Headers}, Timeout);
 
 request(PoolName, post, Path, Headers, Params, Timeout) ->
@@ -22,6 +23,7 @@ request(PoolName, post, Path, Headers, Params, Timeout) ->
     %%            <<"application/json">> -> 
     %%                emqx_json:encode(bin_kw(Params))
     %%        end,
+    ?LOG_GLD("[WEB-HTTP-POST] Path:~s~nHeader: ~p~nParams: ~p", [Path, Headers, Params]),
     do_request(post, PoolName, {Path, Headers, emqx_json:encode(Params)}, Timeout).
 
 do_request(Method, PoolName, Req, Timeout) ->
@@ -67,7 +69,9 @@ feedvar(Params, ClientInfo = #{clientid := ClientId}) ->
                  ({Param, "%c"}) -> {Param, ClientId};
                  ({Param, "%P"}) -> {Param, maps:get(password, ClientInfo, null)};
                  ({Param, "%m"}) -> {Param, maps:get(mountpoint, ClientInfo, null)};
-                 ({Param, Var})  -> {Param, Var}
+                 ({Param, Var})  -> 
+		      ?LOG_GLD("[Feed Var: placehold] ~ts, ClientInfo: ~p", [Var, ClientInfo]),
+		      {Param, Var}
               end, Params);
 feedvar(Params, _ClientInfo) -> Params.
 
