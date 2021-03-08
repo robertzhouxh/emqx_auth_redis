@@ -57,7 +57,9 @@ do_check_acl(#{username := Token, clientid := <<$^, _/bytes>>},  PubSub, Topic, 
 	{ok, 200, Body} -> 
 	    ?LOG_GLD("ACL WebHook Rsp OK: ~ts~n", [Body]),
 	    acl_match(PubSub, Topic, DevId, PrdId, 0);
-	{ok, _Code, _Body} -> {stop, deny};
+	{ok, Code, Body} -> 
+	    ?LOG_GLD("ACL WebHook Rsp OK: code: ~p, ~ts~n", [Code, Body]),
+	    {stop, deny};
 	{error, Error} ->
 	    ?LOG(error, "Request ACL path ~s, error: ~p", 
 		 [AclReq#http_request.path, Error]), {stop, deny}
