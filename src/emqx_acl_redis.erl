@@ -39,7 +39,8 @@ do_check_acl(#{username := <<"dashboard">>}, _PubSub, _Topic, _AclResult, _Confi
 do_check_acl(#{clientid := <<$^, _/bytes>>}, _PubSub, <<"enno", _/binary>>, _AclResult, _Config) -> {stop, allow};
 do_check_acl(#{username := Token, clientid := <<$^, _/bytes>>},  PubSub, Topic, _AclResult, #{acl_req := AclReq, pool_http := PoolName}) ->
     ?LOG_GLD("ACL Tenant ZL-IoT-2.0 token: ~ts, Topic: ~s~n", [Token, Topic]),
-    [_Prefix, PrdId , DevId | _Rest] = emqx_topic:words(Topic),
+    [_Null,_Prefix, PrdId , DevId | _Rest] = emqx_topic:words(Topic),
+    ?LOG_GLD("Topic Words: ~p", [emqx_topic:words(Topic)]),
     %% Params = #{deviceId => DevId},
     %% {ok, Path} = application:get_env(?WEB_HOOK_APP, acl_path),
     %% Headers = application:get_env(?WEB_HOOK_APP, headers, []),
