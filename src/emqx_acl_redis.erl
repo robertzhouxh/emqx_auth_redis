@@ -54,10 +54,10 @@ do_check_acl(#{username := Token, clientid := <<$^, _/bytes>>},  PubSub, Topic, 
     %% 	    {stop, deny}
     %% end;
     %% case check_acl_request(PoolName, AclReq, ClientInfo1) of
-    case check_acl_request(PoolName, AclReq, #{deviceId => DevId}) of
+    case check_acl_request(PoolName, AclReq, #{deviceId => DevId, token => Token}) of
 	{ok, 200, Body} -> 
 	    ?LOG_GLD("ACL WebHook Rsp OK: ~ts~n", [Body]),
-	    acl_match(PubSub, Topic, DevId, PrdId, 0);
+	    acl_match(PubSub, Topic, DevId, PrdId, user);
 	{ok, Code, Body} -> 
 	    ?LOG_GLD("ACL WebHook Rsp OK: code: ~p, ~ts~n", [Code, Body]),
 	    {stop, deny};
@@ -71,11 +71,11 @@ do_check_acl(#{username := DevPrdTs}, PubSub, Topic, _AclResult, _Config) ->
 	%% ZL-2.0
 	[DevId,PrdId,_Ts] ->
 	    ?LOG_GLD("ACL Redis ZL-IoT-2.0: DevPrdTs: ~s, CType: ~p", [DevId,0]),
-	    acl_match(PubSub, Topic, DevId, PrdId, 0);
+	    acl_match(PubSub, Topic, DevId, PrdId, device);
 	%% ZL-1.0
 	[DevPrdTs] -> 
 	    ?LOG_GLD("ACL Redis ZL-IoT-1.0: DevPrdTs: ~p", [DevPrdTs]),
-	    acl_match(PubSub, Topic, DevPrdTs, null, 0);
+	    acl_match(PubSub, Topic, DevPrdTs, null, old);
 	_ ->
 	    ?LOG_GLD("ACL Redis ZL-IoT-1.0: Invalid DevPrdTs: ~s", [DevPrdTs]),
 	    {stop, deny}
@@ -85,23 +85,24 @@ check_acl_request(PoolName, #http_request{path = Path,
                                           method = Method,
                                           headers = Headers,
                                           params = Params,
-                                          request_timeout = RequestTimeout}, PostData) ->
+                                          request_timeout = RequestTimeout}, PostData = #{token := Token}) ->
     %% Data = maps:from_list(feedvar(Params, ClientInfo)),
-    request(PoolName, Method, Path, Headers, PostData, RequestTimeout).
+    NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>}|Headers],
+    request(PoolName, Method, Path, NHeaders, maps:remove(token, PostData), RequestTimeout).
 
-acl_match(PubSub, Topic, DevId, null, 0) ->
+acl_match(PubSub, Topic, DevId, null, old) ->
     D_RULES = ?O_D_RULES(DevId),
     case match(PubSub, Topic, D_RULES) of
 	allow   -> {stop, allow};
 	nomatch -> {stop, deny}
     end;
-acl_match(PubSub, Topic, DevId, PrdId, 0) ->
+acl_match(PubSub, Topic, DevId, PrdId, device) ->
     D_RULES = ?D_RULES(PrdId, DevId),
     case match(PubSub, Topic, D_RULES) of
 	allow   -> {stop, allow};
 	nomatch -> {stop, deny}
     end;
-acl_match(PubSub, Topic, DevId, PrdId, 1) ->
+acl_match(PubSub, Topic, DevId, PrdId, user) ->
     U_RULES = ?U_RULES(PrdId,DevId),
     case match(PubSub, Topic, U_RULES) of
 	allow   -> {stop, allow};
