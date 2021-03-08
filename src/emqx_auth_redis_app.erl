@@ -25,7 +25,7 @@ start(_StartType, _StartArgs) ->
     case translate_env() of
         ok ->
             {ok, PoolOpts} = application:get_env(?APP, pool_opts),
-            {ok, Sup} = emqx_http_client_sup:start_link(?APP, ssl(inet(PoolOpts))),
+            {ok, Sup} = emqx_http_client_sup:start_link(?APP_HTTP_POOL, ssl(inet(PoolOpts))),
 	    with_env(auth_req, fun load_auth_hook/1),
 	    with_env(acl_req,  fun load_acl_hook/1),
             {ok, Sup};

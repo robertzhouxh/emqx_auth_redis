@@ -1,5 +1,6 @@
 
 -define(APP, emqx_auth_redis).
+-define(APP_HTTP_POOL, emqx_auth_http).
 -define(WEB_HOOK_APP, emqx_auth_redis).
 
 -record(http_request, {method = post, path, headers, params, request_timeout}).

@@ -11,7 +11,7 @@
 -include_lib("emqx/include/emqx.hrl").
 -include_lib("emqx/include/logger.hrl").
 
--import(emqx_auth_http_cli,
+-import(emqx_http_client_cli,
         [ request/6
 	, feedvar/2
         ]).
@@ -36,39 +36,30 @@ check_acl(ClientInfo, PubSub, Topic, AclResult, Config) ->
 do_check_acl(#{username := <<$$, _/binary>>}, _PubSub, _Topic, _AclResult, _State) -> ok;
 do_check_acl(#{username := <<"dashboard">>}, _PubSub, _Topic, _AclResult, _State) -> ok;
 do_check_acl(#{clientid := <<$^, _/bytes>>}, _PubSub, <<"enno", _/binary>>, _AclResult, _State) -> {stop, allow};
-do_check_acl(#{username := UT, clientid := <<$^, _/bytes>>},  PubSub, Topic, _AclResult, #{acl_req := AclReq, pool_http := PoolName}) ->
-    ?LOG_GLD("ACL Tenant ZL-IoT-2.0 username&token: ~s, Topic: ~s~n", [UT, Topic]),
+do_check_acl(#{username := Token, clientid := <<$^, _/bytes>>},  PubSub, Topic, _AclResult, #{acl_req := AclReq, pool_http := PoolName}) ->
+    ?LOG_GLD("ACL Tenant ZL-IoT-2.0 token: ~ts, Topic: ~s~n", [Token, Topic]),
     [_Prefix, PrdId , DevId | _Rest] = emqx_topic:words(Topic),
-    case binary:split(UT,<<$&>>,[global]) of
-	[_Uid,Token] ->
-	    %% Params = #{deviceId => DevId},
-	    %% {ok, Path} = application:get_env(?WEB_HOOK_APP, acl_path),
-	    %% Headers = application:get_env(?WEB_HOOK_APP, headers, []),
-	    %% NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>} | Headers],
-	    %% case emqx_auth_hook:send_http_request(Uid, Params, Path, NHeaders, post) of
-	    %% 	{ok, RawData} -> 
-	    %% 	    ?LOG_GLD("ACL WebHook Rsp OK: ~p", [RawData]),
-	    %% 	    acl_match(PubSub, Topic, DevId, PrdId, 0);
-	    %% 	{error, ErrMsg} -> 
-	    %% 	    ?LOG_GLD("ACL WebHook Rsp Err: ~p", [ErrMsg]),
-	    %% 	    {stop, deny}
-	    %% end;
-	    %% case check_acl_request(PoolName, AclReq, ClientInfo1) of
-            case check_acl_request(PoolName, AclReq, #{deviceId => DevId, token => Token}) of
-		{ok, 200, <<"ignore">>} -> ok;
-		{ok, 200, Body}    -> 
-	            ?LOG_GLD("ACL WebHook Rsp OK: ~ts~n", [Body]),
-		    %% {stop, allow};
-		    acl_match(PubSub, Topic, DevId, PrdId, 0);
-		{ok, _Code, _Body}  -> {stop, deny};
-		{error, Error}      ->
-		    ?LOG(error, "Request ACL path ~s, error: ~p",
-			 [AclReq#http_request.path, Error]),
-		    ok
-	    end;
-	_ ->
-	    ?LOG_GLD("ACL ZL-IoT-2.0: Invalid username: ~s", [UT]),
-	    {stop, deny}
+    %% Params = #{deviceId => DevId},
+    %% {ok, Path} = application:get_env(?WEB_HOOK_APP, acl_path),
+    %% Headers = application:get_env(?WEB_HOOK_APP, headers, []),
+    %% NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>} | Headers],
+    %% case emqx_auth_hook:send_http_request(Uid, Params, Path, NHeaders, post) of
+    %% 	{ok, RawData} -> 
+    %% 	    ?LOG_GLD("ACL WebHook Rsp OK: ~p", [RawData]),
+    %% 	    acl_match(PubSub, Topic, DevId, PrdId, 0);
+    %% 	{error, ErrMsg} -> 
+    %% 	    ?LOG_GLD("ACL WebHook Rsp Err: ~p", [ErrMsg]),
+    %% 	    {stop, deny}
+    %% end;
+    %% case check_acl_request(PoolName, AclReq, ClientInfo1) of
+    case check_acl_request(PoolName, AclReq, #{deviceId => DevId, token => Token}) of
+	{ok, 200, Body} -> 
+	    ?LOG_GLD("ACL WebHook Rsp OK: ~ts~n", [Body]),
+	    acl_match(PubSub, Topic, DevId, PrdId, 0);
+	{ok, _Code, _Body} -> {stop, deny};
+	{error, Error} ->
+	    ?LOG(error, "Request ACL path ~s, error: ~p", 
+		 [AclReq#http_request.path, Error]), {stop, deny}
     end;
 do_check_acl(#{username := DevPrdTs}, PubSub, Topic, _AclResult, _State) ->
     ?LOG_GLD("ACL Device ZL-IoT-2.0 DeviceId: ~s, Topic: ~s~n", [DevPrdTs, Topic]),

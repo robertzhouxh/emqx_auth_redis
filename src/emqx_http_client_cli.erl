@@ -11,9 +11,9 @@
 %% HTTP Request
 %%--------------------------------------------------------------------
 
-request(PoolName, get, Path, Headers, Params, Timeout) ->
-    NewPath = Path ++ "?" ++ binary_to_list(cow_qs:qs(bin_kw(Params))),
-    do_request(get, PoolName, {NewPath, Headers}, Timeout);
+request(PoolName, get, Path, Headers, _Params, Timeout) ->
+    %% NewPath = Path ++ "?" ++ binary_to_list(cow_qs:qs(bin_kw(Params))),
+    do_request(get, PoolName, {Path, Headers}, Timeout);
 
 request(PoolName, post, Path, Headers, Params, Timeout) ->
     %% Body = case proplists:get_value(<<"content-type">>, Headers) of
@@ -65,10 +65,11 @@ bin(Binary) when is_binary(Binary) ->
 feedvar(Params, ClientInfo = #{clientid := ClientId}) ->
     lists:map(fun({Param, "%u"}) -> {Param, maps:get(username, ClientInfo, null)};
                  ({Param, "%c"}) -> {Param, ClientId};
-                 ({Param, "%P"}) -> {Param, maps:get(username, ClientInfo, null)};
+                 ({Param, "%P"}) -> {Param, maps:get(password, ClientInfo, null)};
                  ({Param, "%m"}) -> {Param, maps:get(mountpoint, ClientInfo, null)};
                  ({Param, Var})  -> {Param, Var}
-              end, Params).
+              end, Params);
+feedvar(Params, _ClientInfo) -> Params.
 
 feedvar(Params, Var, Val) ->
     lists:map(fun({Param, Var0}) when Var0 == Var ->

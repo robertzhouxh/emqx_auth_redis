@@ -11,7 +11,7 @@
 -include_lib("emqx/include/emqx.hrl").
 -include_lib("emqx/include/logger.hrl").
 
--import(emqx_auth_http_cli,
+-import(emqx_http_client_cli,
         [ request/6
         , feedvar/2
         ]).
@@ -27,7 +27,7 @@ register_metrics() ->
 
 %% check user
 %check(ClientInfo = #{password := Token, clientid := <<$^, ClientId/binary>>, username := Uid}, AuthResult, _State) ->
-check(ClientInfo = #{password := Token, clientid := <<$^, ClientId/binary>>, username := Uid}, AuthResult, #{pool_http := PoolName, auth_req := AuthReq}) ->
+check(ClientInfo = #{password := Uid, clientid := <<$^, ClientId/binary>>, username := Token}, AuthResult, #{pool_http := PoolName, auth_req := AuthReq}) ->
     {ok, SuperUser} = application:get_env(?APP, super_account),
     ?LOG_GLD("AUTH Redis ZL-IoT-2.0 Tenant Uid: ~p, Token: ~p~n, SuperUser: ~p", [Uid, Token, SuperUser]),
     case is_superuser(Uid, SuperUser)  of 
@@ -133,9 +133,12 @@ authenticate(PoolName, #http_request{path = Path,
 				     method = Method, 
 				     headers = Headers,
 				     params = Params, 
-				     request_timeout = RequestTimeout}, #{password := Token} = ClientInfo) ->
+				     request_timeout = RequestTimeout}, #{username := Token} = ClientInfo) ->
+				     %% request_timeout = RequestTimeout}, #{password := Token} = ClientInfo) ->
    NHeaders = [{<<"Authorization">>, <<"bearer ", Token/binary>>}|Headers],
-   request(PoolName, Method, Path, NHeaders, feedvar(Params, ClientInfo), RequestTimeout);
+   ?LOG_GLD("Feed NVars: ~p~nClientInfo: ~p~n", [Params, ClientInfo]),
+   NVars = feedvar(Params, ClientInfo),
+   request(PoolName, Method, Path, NHeaders, NVars, RequestTimeout);
 authenticate(_,_,_) -> {error, invalid_args}.
      
 http_to_connack_error(400) -> bad_username_or_password;
