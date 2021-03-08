@@ -48,17 +48,19 @@ load_auth_hook(AuthReq) ->
 	       pool => ?APP,
 	       auth_req => AuthReq,
                pool_http => emqx_auth_http},
+    ?LOG_GLD("[WEB-AUTH] config: ~p~n", [Config]),
     ok = emqx_auth_redis:register_metrics(),
     emqx:hook('client.authenticate', fun emqx_auth_redis:check/3, [Config]).
 
 load_acl_hook(AclReq) ->
-    {ok, Timeout} = applicatin:get_env(?APP, query_timeout),
+    {ok, Timeout} = application:get_env(?APP, query_timeout),
     Type = proplists:get_value(type, application:get_env(?APP, server, [])),
     Config = #{timeout => Timeout,
                type => Type,
                pool => ?APP,
 	       acl_req   => AclReq,
 	       pool_http => emqx_auth_http},
+    ?LOG_GLD("[WEB-ACL] config: ~p~n", [Config]),
     ok = emqx_acl_redis:register_metrics(),
     emqx:hook('client.check_acl', fun emqx_acl_redis:check_acl/5, [Config]).
 

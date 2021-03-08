@@ -219,25 +219,25 @@ end}.
 %% ------------------------------------------------------------------------------------------------
 %%                                         http client 
 %% ------------------------------------------------------------------------------------------------
-{mapping, "auth.http.auth_req", "emqx_auth_http.auth_req", [
+{mapping, "auth.http.auth_req", "emqx_auth_redis.auth_req", [
   {datatype, string}
 ]}.
 
-{mapping, "auth.http.auth_req.method", "emqx_auth_http.auth_req", [
+{mapping, "auth.http.auth_req.method", "emqx_auth_redis.auth_req", [
   {default, post},
   {datatype, {enum, [post, get]}}
 ]}.
 
-{mapping, "auth.http.auth_req.content_type", "emqx_auth_http.auth_req", [
+{mapping, "auth.http.auth_req.content_type", "emqx_auth_redis.auth_req", [
   {default, 'x-www-form-urlencoded'},
   {datatype, {enum, ['json', 'x-www-form-urlencoded']}}
 ]}.
 
-{mapping, "auth.http.auth_req.params", "emqx_auth_http.auth_req", [
+{mapping, "auth.http.auth_req.params", "emqx_auth_redis.auth_req", [
   {datatype, string}
 ]}.
 
-{translation, "emqx_auth_http.auth_req", fun(Conf) ->
+{translation, "emqx_auth_redis.auth_req", fun(Conf) ->
   case cuttlefish:conf_get("auth.http.auth_req", Conf) of
     undefined -> cuttlefish:unset();
     Url ->
@@ -246,6 +246,36 @@ end}.
       {method, cuttlefish:conf_get("auth.http.auth_req.method", Conf)},
       {content_type, list_to_binary("application/" ++ atom_to_list(cuttlefish:conf_get("auth.http.auth_req.content_type", Conf)))},
       {params, [list_to_tuple(string:tokens(S, "=")) || S <- string:tokens(Params, ",")]}]
+  end
+end}.
+
+{mapping, "auth.http.acl_req", "emqx_auth_redis.acl_req", [
+  {default, undefined},
+  {datatype, string}
+]}.
+
+{mapping, "auth.http.acl_req.method", "emqx_auth_redis.acl_req", [
+  {default, post},
+  {datatype, {enum, [post, get]}}
+]}.
+
+{mapping, "auth.http.acl_req.content_type", "emqx_auth_redis.acl_req", [
+  {default, 'x-www-form-urlencoded'},
+  {datatype, {enum, ['json', 'x-www-form-urlencoded']}}
+]}.
+
+{mapping, "auth.http.acl_req.params", "emqx_auth_redis.acl_req", [
+  {datatype, string}
+]}.
+
+{translation, "emqx_auth_redis.acl_req", fun(Conf) ->
+  case cuttlefish:conf_get("auth.http.acl_req", Conf, undefined) of
+    undefined -> cuttlefish:unset();
+    Url -> Params = cuttlefish:conf_get("auth.http.acl_req.params", Conf),
+           [{url, Url},
+            {method, cuttlefish:conf_get("auth.http.acl_req.method", Conf)},
+            {content_type, list_to_binary("application/" ++ atom_to_list(cuttlefish:conf_get("auth.http.acl_req.content_type", Conf)))},
+            {params, [list_to_tuple(string:tokens(S, "=")) || S <- string:tokens(Params, ",")]}]
   end
 end}.
 
