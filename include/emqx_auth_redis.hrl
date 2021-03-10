@@ -38,7 +38,9 @@
         ,{<<"/shadow/",ProductId/binary,$/,DeviceId/binary,"/get">>, 3}
         ,{<<"/shadow/",ProductId/binary,$/,DeviceId/binary,"/update">>, 3}
         ,{<<"/sys/user/",DeviceId/binary,"/info">>, 1}
-	,{<<"enno/out/json/logs/", DeviceId/binary>>, 1}
+	,{<<"enno/in/json">>, 1}
+	,{<<"enno/in/json/logs/", DeviceId/binary>>, 1}
+	,{<<"enno/out/json/", DeviceId/binary>>, 2}
 	]).
 
 -define(D_RULES(ProductId,DeviceId), 
@@ -58,6 +60,7 @@
 
 -define(O_D_RULES(DeviceId), 
 	[{<<"enno/in/json">>, 2}
+	,{<<"enno/in/json/logs/", DeviceId/binary>>, 2}
 	,{<<"enno/out/json/", DeviceId/binary>>, 1}
 	]).
 
