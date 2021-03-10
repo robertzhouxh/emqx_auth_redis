@@ -66,11 +66,11 @@ do_check_acl(#{username := Token, clientid := <<$^, _/bytes>>},  PubSub, Topic, 
 		 [AclReq#http_request.path, Error]), {stop, deny}
     end;
 do_check_acl(#{username := DevPrdTs}, PubSub, Topic, _AclResult, _Config) ->
-    ?LOG_GLD("ACL Device ZL-IoT-2.0 DeviceId: ~s, Topic: ~s~n", [DevPrdTs, Topic]),
+    %% ?LOG_GLD("ACL Device ZL-IoT-2.0 DeviceId: ~s, Topic: ~s~n", [DevPrdTs, Topic]),
     case binary:split(DevPrdTs,<<$&>>,[global]) of
 	%% ZL-2.0
 	[DevId,PrdId,_Ts] ->
-	    ?LOG_GLD("ACL Redis ZL-IoT-2.0: DevPrdTs: ~s, CType: ~p", [DevId,0]),
+	    %% ?LOG_GLD("ACL Redis ZL-IoT-2.0: DevPrdTs: ~s, CType: ~p", [DevId,0]),
 	    acl_match(PubSub, Topic, DevId, PrdId, device);
 	%% ZL-1.0
 	[DevPrdTs] -> 
