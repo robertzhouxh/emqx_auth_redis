@@ -3,6 +3,7 @@
 -behaviour(supervisor).
 
 -include("emqx_auth_redis.hrl").
+-include_lib("emqx/include/logger.hrl").
 
 -export([ start_link/2
         , init/1
@@ -15,10 +16,12 @@ start_link(Pool, Opts) ->
 init([Pool, Opts]) ->
     %% redis
     {ok, Server} = application:get_env(?APP, server),
-    io:format("[Redis] Opts: ~p~n", [Server]),
+    io:format("[Redis-Env]: ~p~n", [Server]),
+    ?LOG(info, "[Redis-Env]: ~p", [Server]),
 
     %% http
-    io:format("[Http] Opts: ~p~n", [Opts]),
+    io:format("[Http-Env]: ~p~n", [Opts]),
+    ?LOG(info, "[Http-Env]: ~p", [Opts]),
     PoolSize = pool_size(Opts),
     ok = ensure_pool(Pool, random, [{size, PoolSize}]),
     {ok, {{one_for_one, 10, 100}, pool_spec(Server) ++ [
